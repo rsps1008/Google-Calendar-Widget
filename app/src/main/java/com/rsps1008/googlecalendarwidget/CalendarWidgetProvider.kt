@@ -141,6 +141,8 @@ class CalendarWidgetProvider : AppWidgetProvider() {
                         val isToday = date == LocalDate.now()
                         setTextViewText(R.id.cell_day, date.dayOfMonth.toString())
                         setTextViewTextSize(R.id.cell_day, TypedValue.COMPLEX_UNIT_SP, if (rowHeightDp >= 32) 12f else 10f)
+                        setTextViewText(R.id.cell_lunar, if (CalendarPreferences.showLunarDates(context)) lunarDateLabel(date) else "")
+                        setViewVisibility(R.id.cell_lunar, if (CalendarPreferences.showLunarDates(context)) android.view.View.VISIBLE else android.view.View.GONE)
                         setTextColor(R.id.cell_day, when {
                             isToday -> 0xFF071E27.toInt()
                             date.month == month.month && date.year == month.year -> foreground

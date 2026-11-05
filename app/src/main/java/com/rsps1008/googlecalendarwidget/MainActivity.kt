@@ -94,6 +94,7 @@ private fun CalendarHome() {
     var selectedDate by remember { mutableStateOf(LocalDate.now()) }
     var events by remember { mutableStateOf(emptyList<CalendarEvent>()) }
     var mondayFirst by remember { mutableStateOf(CalendarPreferences.weekStartsMonday(context)) }
+    var showLunar by remember { mutableStateOf(CalendarPreferences.showLunarDates(context)) }
     var refreshKey by remember { mutableIntStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
 
@@ -205,6 +206,7 @@ private fun CalendarHome() {
                         events = events,
                         mondayFirst = mondayFirst,
                         dark = useDark,
+                        showLunar = showLunar,
                         onDateSelected = {
                             selectedDate = it
                             if (YearMonth.from(it) != currentMonth) currentMonth = YearMonth.from(it)
@@ -228,6 +230,7 @@ private fun CalendarHome() {
                 selected = selectedCalendars,
                 mondayFirst = mondayFirst,
                 themeChoice = themeChoice,
+                showLunar = showLunar,
                 onCalendarChange = { id, checked ->
                     selectedCalendars = if (checked) selectedCalendars + id else selectedCalendars - id
                     CalendarPreferences.setSelectedCalendarIds(context, selectedCalendars)
@@ -241,6 +244,10 @@ private fun CalendarHome() {
                 onThemeChange = {
                     themeChoice = it
                     CalendarPreferences.setTheme(context, it)
+                },
+                onLunarChange = {
+                    showLunar = it
+                    CalendarPreferences.setShowLunarDates(context, it)
                 },
                 onRefresh = { refreshKey++ },
                 onDismiss = { showSettings = false },
@@ -256,6 +263,7 @@ private fun MonthCalendar(
     events: List<CalendarEvent>,
     mondayFirst: Boolean,
     dark: Boolean,
+    showLunar: Boolean,
     onDateSelected: (LocalDate) -> Unit,
 ) {
     val days = remember(month, mondayFirst) { monthGrid(month.atDay(1), mondayFirst) }
@@ -285,17 +293,20 @@ private fun MonthCalendar(
                                 .padding(horizontal = 3.dp, vertical = 4.dp),
                             horizontalAlignment = Alignment.CenterHorizontally,
                         ) {
-                            Text(
-                                date.dayOfMonth.toString(),
-                                fontSize = 14.sp,
-                                color = when {
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.Center) {
+                                Text(
+                                    date.dayOfMonth.toString(),
+                                    fontSize = 14.sp,
+                                    color = when {
                                     chosen -> Color(0xFF10252D)
                                     date.month != month.month -> if (dark) Color(0xFF73868C) else Color(0xFFADB9BC)
                                     today -> Color(0xFF2AA6D6)
                                     else -> MaterialTheme.colorScheme.onSurface
-                                },
-                                fontWeight = if (today || chosen) FontWeight.Bold else FontWeight.Normal,
-                            )
+                                    },
+                                    fontWeight = if (today || chosen) FontWeight.Bold else FontWeight.Normal,
+                                )
+                                if (showLunar) Text(lunarDateLabel(date), fontSize = 9.sp, color = if (chosen) Color(0xFF31505A) else MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, softWrap = false)
+                            }
                             val event = dayEvents.firstOrNull()
                             if (event != null) {
                                 Box(
@@ -347,9 +358,11 @@ private fun CalendarSettingsDialog(
     selected: Set<Long>,
     mondayFirst: Boolean,
     themeChoice: ThemeChoice,
+    showLunar: Boolean,
     onCalendarChange: (Long, Boolean) -> Unit,
     onWeekStartChange: (Boolean) -> Unit,
     onThemeChange: (ThemeChoice) -> Unit,
+    onLunarChange: (Boolean) -> Unit,
     onRefresh: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -381,6 +394,11 @@ private fun CalendarSettingsDialog(
                         RadioButton(selected = mondayFirst == monday, onClick = { onWeekStartChange(monday) })
                         Text(label)
                     }
+                }
+                Spacer(Modifier.height(14.dp))
+                Row(Modifier.fillMaxWidth().clickable { onLunarChange(!showLunar) }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = showLunar, onCheckedChange = onLunarChange)
+                    Text("顯示農曆日期（主畫面與桌面小工具）")
                 }
                 Spacer(Modifier.height(14.dp))
                 Text("外觀", fontWeight = FontWeight.SemiBold)

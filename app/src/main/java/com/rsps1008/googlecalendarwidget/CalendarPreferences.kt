@@ -16,6 +16,7 @@ object CalendarPreferences {
     private const val KEY_SELECTED_CALENDARS = "selected_calendars"
     private const val KEY_WEEK_START = "week_start_monday"
     private const val KEY_THEME = "theme"
+    private const val KEY_SHOW_LUNAR = "show_lunar_dates"
     private const val KEY_WIDGET_MONTH_PREFIX = "widget_month_"
     private const val KEY_WIDGET_LAYOUT_VARIANT_PREFIX = "widget_layout_variant_"
 
@@ -45,6 +46,13 @@ object CalendarPreferences {
 
     fun setTheme(context: Context, theme: ThemeChoice) {
         prefs(context).edit().putString(KEY_THEME, theme.storedValue).apply()
+        CalendarWidgetProvider.updateAll(context)
+    }
+
+    fun showLunarDates(context: Context): Boolean = prefs(context).getBoolean(KEY_SHOW_LUNAR, true)
+
+    fun setShowLunarDates(context: Context, show: Boolean) {
+        prefs(context).edit().putBoolean(KEY_SHOW_LUNAR, show).apply()
         CalendarWidgetProvider.updateAll(context)
     }
 
