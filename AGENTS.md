@@ -23,7 +23,7 @@
 
 ## 主要資料與更新流程
 
-1. 使用者在 `MainActivity` 授予 `READ_CALENDAR` 後，`CalendarRepository` 透過系統 `CalendarContract` 查詢日曆清單及所選日曆的事件；應用程式不直接連線 Google Calendar 網路 API。
+1. `MainActivity` 每次進入時檢查 `READ_CALENDAR`；未授權時說明用途，若系統不再顯示授權對話框則提供 App 權限設定入口。取得權限後，`CalendarRepository` 透過系統 `CalendarContract` 查詢日曆清單及所選日曆的事件；應用程式不直接連線 Google Calendar 網路 API。
 2. Compose 畫面依所選月份、日曆、週起始日與刷新狀態載入資料，提供月曆格及所選日期的行程列表。設定存入 `CalendarPreferences`。
 3. `CalendarWidgetProvider` 依每個 Widget ID 保存的月份、偏好與 launcher 提供的尺寸建構 RemoteViews。上一月、下一月、今天按鈕會以明確的 PendingIntent action 更新該小工具。
 4. 日期、時間、時區或顯示組態變動，以及 Calendar Provider 內容變更，都會觸發小工具重新整理。日曆內容變更由 `CalendarChangeJob` 的 JobScheduler URI trigger 監聽。

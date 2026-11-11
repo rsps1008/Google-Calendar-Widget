@@ -13,7 +13,7 @@ android {
         applicationId = "com.rsps1008.googlecalendarwidget"
         minSdk = 33
         targetSdk = 37
-        versionCode = 1
+        versionCode = 10
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"

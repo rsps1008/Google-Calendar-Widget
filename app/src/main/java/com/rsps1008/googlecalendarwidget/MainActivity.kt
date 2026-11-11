@@ -2,10 +2,12 @@ package com.rsps1008.googlecalendarwidget
 
 import android.Manifest
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.provider.CalendarContract
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -97,22 +99,47 @@ private fun CalendarHome() {
     var showLunar by remember { mutableStateOf(CalendarPreferences.showLunarDates(context)) }
     var refreshKey by remember { mutableIntStateOf(0) }
     var showSettings by remember { mutableStateOf(false) }
+    var showPermissionPrompt by remember { mutableStateOf(false) }
+    var promptedThisVisit by remember { mutableStateOf(false) }
+    var permissionFlowInProgress by remember { mutableStateOf(false) }
+    val activity = context as ComponentActivity
+    val permissionState = remember { context.getSharedPreferences("calendar_permission_state", android.content.Context.MODE_PRIVATE) }
+    var permissionBlocked by remember { mutableStateOf(permissionState.getBoolean("blocked", false)) }
 
     val permissionLauncher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         canRead = granted
-        if (granted) refreshKey++
-        else Toast.makeText(context, "需要日曆讀取權限才能顯示行程", Toast.LENGTH_LONG).show()
+        permissionFlowInProgress = false
+        permissionBlocked = !granted && !activity.shouldShowRequestPermissionRationale(Manifest.permission.READ_CALENDAR)
+        permissionState.edit().putBoolean("blocked", permissionBlocked).apply()
+        if (granted) {
+            showPermissionPrompt = false
+            refreshKey++
+        }
     }
 
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 canRead = CalendarRepository.hasReadPermission(context)
+                if (canRead) {
+                    permissionBlocked = false
+                    permissionState.edit().putBoolean("blocked", false).apply()
+                    showPermissionPrompt = false
+                } else if (!permissionFlowInProgress && !promptedThisVisit) {
+                    promptedThisVisit = true
+                    showPermissionPrompt = true
+                }
+                permissionFlowInProgress = false
                 refreshKey++
                 CalendarWidgetProvider.updateAll(context)
+            } else if (event == Lifecycle.Event.ON_STOP && !permissionFlowInProgress) {
+                promptedThisVisit = false
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
+        if (lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            observer.onStateChanged(lifecycleOwner, Lifecycle.Event.ON_RESUME)
+        }
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
@@ -188,7 +215,7 @@ private fun CalendarHome() {
                         Column(Modifier.padding(22.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                             Text("連結 Google 日曆", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
                             Text("允許讀取此裝置已同步的日曆，行程就會顯示在月曆與桌面小工具。")
-                            Button(onClick = { permissionLauncher.launch(Manifest.permission.READ_CALENDAR) }) { Text("授予日曆存取權") }
+                            Button(onClick = { showPermissionPrompt = true }) { Text("授予日曆存取權") }
                         }
                     }
                 } else if (calendars.isEmpty()) {
@@ -251,6 +278,33 @@ private fun CalendarHome() {
                 },
                 onRefresh = { refreshKey++ },
                 onDismiss = { showSettings = false },
+            )
+        }
+        if (showPermissionPrompt && !canRead) {
+            AlertDialog(
+                onDismissRequest = { showPermissionPrompt = false },
+                title = { Text("允許讀取日曆") },
+                text = {
+                    Text(if (permissionBlocked) {
+                        "請在應用程式權限設定中允許日曆存取，才能在主畫面和桌面小工具顯示已同步的行程。"
+                    } else {
+                        "請允許讀取裝置上已同步的日曆，主畫面和桌面小工具才能顯示行程。若系統提供「一律允許」選項，請選擇該選項；否則選擇「允許」。"
+                    })
+                },
+                confirmButton = {
+                    TextButton(onClick = {
+                        showPermissionPrompt = false
+                        promptedThisVisit = true
+                        permissionFlowInProgress = true
+                        if (permissionBlocked) {
+                            val intent = Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:${context.packageName}"))
+                            context.startActivity(intent)
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.READ_CALENDAR)
+                        }
+                    }) { Text(if (permissionBlocked) "開啟權限設定" else "繼續") }
+                },
+                dismissButton = { TextButton(onClick = { showPermissionPrompt = false }) { Text("稍後") } },
             )
         }
     }
